@@ -1,6 +1,11 @@
 import asyncio
 
-from app.data.models import async_session, ImageDescription, Users, ProcessedImageDescriptions
+from app.data.models import (
+    async_session,
+    ImageDescription,
+    Users,
+    ProcessedImageDescriptions,
+)
 from sqlalchemy import select
 
 
@@ -73,7 +78,7 @@ async def add_processed_image_description(image_desc: ImageDescription):
                 id=image_desc.id,
                 name=image_desc.name,
                 extension=image_desc.extension,
-                description=image_desc.description
+                description=image_desc.description,
             )
             session.add(processed_record)
             await asyncio.wait_for(session.commit(), timeout=DB_TIMEOUT)

@@ -5,7 +5,11 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 import app.data.request as req
 import app.tools.utils as ut
-from app.data.request import get_all_image_descriptions, get_processed_image_ids, add_processed_image_description
+from app.data.request import (
+    get_all_image_descriptions,
+    get_processed_image_ids,
+    add_processed_image_description,
+)
 from app.services.llama_integration import LlamaIndexManager
 
 
@@ -72,7 +76,9 @@ async def sync_images_handler(message: Message):
         all_descriptions = await get_all_image_descriptions()
         processed_ids = await get_processed_image_ids()
 
-        new_descriptions = [desc for desc in all_descriptions if desc.id not in processed_ids]
+        new_descriptions = [
+            desc for desc in all_descriptions if desc.id not in processed_ids
+        ]
 
         if not new_descriptions:
             await message.answer("✅ Нет новых данных для синхронизации")
@@ -82,11 +88,9 @@ async def sync_images_handler(message: Message):
 
         images_data = []
         for desc in new_descriptions:
-            images_data.append({
-                "id": desc.id,
-                "name": desc.name,
-                "description": desc.description
-            })
+            images_data.append(
+                {"id": desc.id, "name": desc.name, "description": desc.description}
+            )
 
         llama_manager = LlamaIndexManager()
         success = await llama_manager.index_images(images_data)
@@ -146,13 +150,13 @@ async def search_images_handler(message: Message):
         await message.answer("Сначала авторизуйтесь с помощью /start")
         return
 
-    search_query = message.text.replace('/search', '').strip()
+    search_query = message.text.replace("/search", "").strip()
 
     if not search_query:
         await message.answer("Введите запрос для поиска:\n/search <ваш запрос>")
         return
 
-    await message.answer(f"🔍 Ищу: \"{search_query}\"")
+    await message.answer(f'🔍 Ищу: "{search_query}"')
 
     try:
         llama_manager = LlamaIndexManager()
