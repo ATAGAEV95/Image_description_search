@@ -39,7 +39,6 @@ class ImageDescription(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(Text, nullable=False)
-    extension = Column(String(10), nullable=False)
     description = Column(Text, nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.current_timestamp()
@@ -51,7 +50,6 @@ class ProcessedImageDescriptions(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(Text, nullable=False)
-    extension = Column(String(10), nullable=False)
     description = Column(Text, nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.current_timestamp()
