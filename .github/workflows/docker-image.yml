@@ -50,8 +50,10 @@ jobs:
             docker stop tgimagebot || true
             docker rm tgimagebot || true
             docker volume create chroma_data_telegram || true
+            docker volume create pictures_data || true
             docker run -d --name tgimagebot \
               -v chroma_data_telegram:/python-app/chroma_db \
+              -v pictures_data:/python-app/app/pictures \
               -e AI_TOKEN="${{ secrets.AI_TOKEN }}" \
               -e AI_TOKEN1="${{ secrets.AI_TOKEN1 }}" \
               -e AI_TOKEN_POLZA="${{ secrets.AI_TOKEN_POLZA }}" \

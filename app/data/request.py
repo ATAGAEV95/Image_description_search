@@ -77,7 +77,6 @@ async def add_processed_image_description(image_desc: ImageDescription):
             processed_record = ProcessedImageDescriptions(
                 id=image_desc.id,
                 name=image_desc.name,
-                extension=image_desc.extension,
                 description=image_desc.description,
             )
             session.add(processed_record)

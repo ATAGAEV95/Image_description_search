@@ -2,6 +2,8 @@ from aiogram import Router
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import FSInputFile
+import os
 from aiogram.types import Message
 import app.data.request as req
 import app.tools.utils as ut
@@ -143,7 +145,7 @@ async def stats_handler(message: Message):
 
 @router.message(Command("search"))
 async def search_images_handler(message: Message):
-    """Ищет изображения по описанию"""
+    """Ищет изображения по описанию и отправляет найденные файлы"""
     user_id = message.from_user.id
     user = await req.get_user_by_id(user_id)
     if not user:
@@ -166,17 +168,20 @@ async def search_images_handler(message: Message):
             await message.answer("😔 Ничего не найдено")
             return
 
-        response = "📋 Результаты поиска:\n\n"
-        for i, result in enumerate(results, 1):
-            response += (
-                f"{i}. Имя файла\n"
-                f"{result['name']}\n"
-                f"Описание:\n"
-                f"{result['description']}\n"
-                f"   ---\n"
-            )
+        # Отправляем каждое найденное изображение
+        for result in results:
+            image_name = result['name']
+            image_path = os.path.join(".", "app", "pictures", image_name)
 
-        await message.answer(response)
+            # Проверяем существование файла
+            if os.path.exists(image_path):
+                # Создаем объект файла для отправки
+                photo = FSInputFile(image_path)
+                # Отправляем изображение с подписью (описанием)
+                await message.answer_photo(
+                    photo)
+            else:
+                await message.answer(f"❌ Файл {image_name} не найден в папке pictures")
 
     except Exception as e:
         await message.answer(f"❌ Ошибка поиска: {str(e)}")
