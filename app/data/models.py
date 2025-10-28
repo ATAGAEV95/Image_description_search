@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
@@ -37,12 +37,10 @@ class Base(AsyncAttrs, DeclarativeBase):
 class ImageDescription(Base):
     __tablename__ = "image_descriptions"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
 
 
 class ProcessedImageDescriptions(Base):
@@ -51,9 +49,7 @@ class ProcessedImageDescriptions(Base):
     id = Column(Integer, primary_key=True)
     name = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
 
 
 class Users(Base):

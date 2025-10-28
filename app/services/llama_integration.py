@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Any, List, Dict
+from typing import Any
 
 import chromadb
 from dotenv import load_dotenv
@@ -35,9 +35,7 @@ class LlamaIndexManager:
             model="text-embedding-3-large",
         )
 
-        self.node_parser = SimpleNodeParser.from_defaults(
-            chunk_size=512, chunk_overlap=32
-        )
+        self.node_parser = SimpleNodeParser.from_defaults(chunk_size=512, chunk_overlap=32)
         self.db = chromadb.PersistentClient(path="./chroma_db")
         self.collection_name = collection_name
 
@@ -52,7 +50,7 @@ class LlamaIndexManager:
             collection = self.db.create_collection(self.collection_name)
         return collection
 
-    async def index_images(self, images: List[Dict[str, Any]]) -> bool:
+    async def index_images(self, images: list[dict[str, Any]]) -> bool:
         """Индексирует описания картинок в ChromaDB.
 
         Args:
@@ -60,6 +58,7 @@ class LlamaIndexManager:
 
         Returns:
             bool: Успешно ли выполнена индексация
+
         """
         try:
             documents = []
@@ -94,7 +93,7 @@ class LlamaIndexManager:
             print(f"Ошибка индексации изображений: {e}")
             return False
 
-    async def search_images(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def search_images(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         """Ищет изображения по текстовому запросу (только по описаниям).
 
         Args:
@@ -103,13 +102,12 @@ class LlamaIndexManager:
 
         Returns:
             List[Dict]: Список найденных изображений с названием и описанием
+
         """
         try:
             collection = self.get_collection()
             vector_store = ChromaVectorStore(chroma_collection=collection)
-            index = await asyncio.to_thread(
-                VectorStoreIndex.from_vector_store, vector_store
-            )
+            index = await asyncio.to_thread(VectorStoreIndex.from_vector_store, vector_store)
 
             retriever = index.as_retriever(similarity_top_k=limit)
             nodes = await asyncio.to_thread(retriever.retrieve, query)
@@ -140,7 +138,7 @@ class LlamaIndexManager:
             print(f"Ошибка очистки коллекции: {e}")
             return False
 
-    async def get_collection_stats(self) -> Dict[str, Any]:
+    async def get_collection_stats(self) -> dict[str, Any]:
         """Возвращает статистику коллекции."""
         try:
             collection = self.get_collection()

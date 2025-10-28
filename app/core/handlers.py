@@ -1,23 +1,21 @@
-from aiogram import Router
-from aiogram.filters import CommandStart, Command
+import os
+
+from aiogram import F, Router
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import FSInputFile
-import os
-from aiogram.types import Message
+from aiogram.types import FSInputFile, Message
+
 import app.data.request as req
 import app.tools.utils as ut
-from app.data.request import (
-    get_all_image_descriptions,
-    get_processed_image_ids,
-    add_processed_image_description,
-)
+from app.core.image_to_text import ai_generate, generate_prompt
 from app.services.llama_integration import LlamaIndexManager
-
 
 router = Router()
 
 ACCESS_PASSWORD = "e5ae93bd8095fbd86c25a110bbf194a5a1a209f1e8eb31bb30c8b0ecbe254d58"
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+PICTURES_DIR = os.path.join(".", "app", "pictures")
 
 
 class RegisterState(StatesGroup):
@@ -40,9 +38,7 @@ async def start_handler(message: Message, state: FSMContext) -> None:
     if user:
         await message.answer("Добро пожаловать!")
     else:
-        await message.answer(
-            "Добро пожаловать! Для продолжения работы введите пароль для доступа."
-        )
+        await message.answer("Добро пожаловать! Для продолжения работы введите пароль для доступа.")
         await state.set_state(RegisterState.waiting_for_password)
 
 
@@ -75,12 +71,10 @@ async def sync_images_handler(message: Message):
     await message.answer("🔄 Начинаю синхронизацию...")
 
     try:
-        all_descriptions = await get_all_image_descriptions()
-        processed_ids = await get_processed_image_ids()
+        all_descriptions = await req.get_all_image_descriptions()
+        processed_ids = await req.get_processed_image_ids()
 
-        new_descriptions = [
-            desc for desc in all_descriptions if desc.id not in processed_ids
-        ]
+        new_descriptions = [desc for desc in all_descriptions if desc.id not in processed_ids]
 
         if not new_descriptions:
             await message.answer("✅ Нет новых данных для синхронизации")
@@ -90,16 +84,14 @@ async def sync_images_handler(message: Message):
 
         images_data = []
         for desc in new_descriptions:
-            images_data.append(
-                {"id": desc.id, "name": desc.name, "description": desc.description}
-            )
+            images_data.append({"id": desc.id, "name": desc.name, "description": desc.description})
 
         llama_manager = LlamaIndexManager()
         success = await llama_manager.index_images(images_data)
 
         if success:
             for desc in new_descriptions:
-                await add_processed_image_description(desc)
+                await req.add_processed_image_description(desc)
 
             await message.answer(
                 f"✅ Синхронизация завершена!\n"
@@ -123,8 +115,8 @@ async def stats_handler(message: Message):
         return
 
     try:
-        all_descriptions = await get_all_image_descriptions()
-        processed_ids = await get_processed_image_ids()
+        all_descriptions = await req.get_all_image_descriptions()
+        processed_ids = await req.get_processed_image_ids()
 
         llama_manager = LlamaIndexManager()
         chroma_stats = await llama_manager.get_collection_stats()
@@ -169,15 +161,103 @@ async def search_images_handler(message: Message):
             return
 
         for result in results:
-            image_name = result['name']
+            image_name = result["name"]
             image_path = os.path.join(".", "app", "pictures", image_name)
 
             if os.path.exists(image_path):
                 photo = FSInputFile(image_path)
-                await message.answer_photo(
-                    photo)
+                await message.answer_photo(photo, caption=f"📸 {image_name}")
             else:
                 await message.answer(f"❌ Файл {image_name} не найден в папке pictures")
 
     except Exception as e:
         await message.answer(f"❌ Ошибка поиска: {str(e)}")
+
+
+@router.message(F.photo)
+async def photo_upload_handler(message: Message):
+    """Сохраняет фотографии, отправленные пользователями, в папку pictures.
+
+    Проверяет расширение файла, сохраняет изображение, затем обрабатывает его
+    с помощью AI для получения описания и сохранения в базу данных.
+    """
+    user_id = message.from_user.id
+    user = await req.get_user_by_id(user_id)
+    if not user:
+        await message.answer("Сначала авторизуйтесь с помощью /start")
+        return
+
+    if not message.photo:
+        await message.answer("❌ Не удалось получить изображение")
+        return
+
+    photo = message.photo[-1]
+
+    try:
+        file = await message.bot.get_file(photo.file_id)
+
+        if not file.file_path:
+            await message.answer("❌ Не удалось получить путь к файлу")
+            return
+
+        if file.file_path:
+            _, extension = os.path.splitext(file.file_path)
+        else:
+            extension = ""
+
+        if not extension or extension.lower() not in ALLOWED_EXTENSIONS:
+            await message.answer(
+                f"❌ Недопустимое расширение файла. Поддерживаемые форматы: {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+            return
+
+        os.makedirs(PICTURES_DIR, exist_ok=True)
+
+        filename = f"{photo.file_unique_id}{extension}"
+        destination = os.path.join(PICTURES_DIR, filename)
+
+        if os.path.exists(destination):
+            await message.answer(
+                f"❌ Файл с таким именем уже существует: {os.path.basename(destination)}. "
+                f"Пожалуйста, отправьте другое изображение."
+            )
+            return
+
+        await message.bot.download(photo.file_id, destination=str(destination))
+        await message.answer(f"📸 Изображение сохранено как {os.path.basename(destination)}")
+
+        await message.answer("🤖 Обрабатываю изображение...")
+
+        prompt = generate_prompt(destination)
+        description = await ai_generate(prompt)
+
+        if not description:
+            print(f"Не удалось получить описание для {filename}, пропуск файла\n")
+            if os.path.exists(destination):
+                os.remove(destination)
+            await message.answer("❌ Не удалось обработать изображение")
+            return
+
+        success = await req.create_image_description(os.path.basename(destination), description)
+
+        if success:
+            await message.answer(
+                f"✅ Изображение успешно обработано!\n\n📝 Описание:\n{description}"
+            )
+        else:
+            success = await req.add_image_description_with_id(
+                os.path.basename(destination), description
+            )
+
+            if success:
+                await message.answer(
+                    f"✅ Изображение успешно обработано!\n\n📝 Описание:\n{description}"
+                )
+            else:
+                if os.path.exists(destination):
+                    os.remove(destination)
+                await message.answer("❌ Не удалось сохранить описание изображения в базу данных")
+
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при обработке изображения: {str(e)}")
+        print(f"Ошибка в photo_upload_handler: {str(e)}")

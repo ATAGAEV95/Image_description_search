@@ -2,6 +2,7 @@
 name = "image-description-search"
 version = "0.1.0"
 description = "Add your description here"
+readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiogram>=3.22.0",
@@ -15,3 +16,15 @@ dependencies = [
     "openai>=1.109.1",
     "sqlalchemy>=2.0.44",
 ]
+
+[tool.ruff]
+line-length = 101
+fix = true
+
+[tool.ruff.lint]
+extend-select = ["E501", "UP", "D", "I", "ANN001", "ANN201"]
+ignore = ["D100"]
+
+[tool.ruff.format]
+docstring-code-line-length = 100
+#quote-style = "single"

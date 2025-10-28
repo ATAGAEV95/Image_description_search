@@ -2,11 +2,10 @@ import asyncio
 import os
 
 from aiogram import Bot, Dispatcher
+from dotenv import load_dotenv
 
 from app.core.handlers import router
 from app.data.models import init_models
-from dotenv import load_dotenv
-
 
 load_dotenv()
 
