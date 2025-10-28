@@ -168,16 +168,12 @@ async def search_images_handler(message: Message):
             await message.answer("😔 Ничего не найдено")
             return
 
-        # Отправляем каждое найденное изображение
         for result in results:
             image_name = result['name']
             image_path = os.path.join(".", "app", "pictures", image_name)
 
-            # Проверяем существование файла
             if os.path.exists(image_path):
-                # Создаем объект файла для отправки
                 photo = FSInputFile(image_path)
-                # Отправляем изображение с подписью (описанием)
                 await message.answer_photo(
                     photo)
             else:
